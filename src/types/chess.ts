@@ -26,11 +26,3 @@ export interface ChatMessage {
   text: string;
   createdAt: any;
 }
-
-export interface ForumPost {
-  id: string;
-  authorId: string;
-  title: string;
-  content: string;
-  createdAt: any;
-}
