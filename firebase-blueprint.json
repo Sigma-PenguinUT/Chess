@@ -1,0 +1,76 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "A user profile in the chess app",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "rating": { "type": "number" },
+        "friends": { "type": "array", "items": { "type": "string" } },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "displayName", "rating"]
+    },
+    "Game": {
+      "title": "Game",
+      "description": "A chess game session",
+      "type": "object",
+      "properties": {
+        "white": { "type": "string" },
+        "black": { "type": "string" },
+        "fen": { "type": "string" },
+        "pgn": { "type": "string" },
+        "status": { "type": "string", "enum": ["waiting", "ongoing", "finished"] },
+        "winner": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "lastMoveAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["white", "fen", "status", "createdAt"]
+    },
+    "Message": {
+      "title": "Message",
+      "description": "A chat message in a game",
+      "type": "object",
+      "properties": {
+        "gameId": { "type": "string" },
+        "senderId": { "type": "string" },
+        "text": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["gameId", "senderId", "text", "createdAt"]
+    },
+    "ForumPost": {
+      "title": "ForumPost",
+      "description": "A post in the community forum",
+      "type": "object",
+      "properties": {
+        "authorId": { "type": "string" },
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["authorId", "title", "content", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "/games/{gameId}": {
+      "schema": "Game",
+      "description": "Active and past games"
+    },
+    "/games/{gameId}/messages/{messageId}": {
+      "schema": "Message",
+      "description": "Game chat messages"
+    },
+    "/forum/{postId}": {
+      "schema": "ForumPost",
+      "description": "Forum posts"
+    }
+  }
+}

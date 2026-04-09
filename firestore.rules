@@ -1,0 +1,127 @@
+// ===============================================================
+// Assumed Data Model
+// ===============================================================
+//
+// Collection: users
+// Document ID: {userId}
+// Fields:
+//   - uid: string (required)
+//   - displayName: string (required)
+//   - photoURL: string (optional)
+//   - rating: number (required)
+//   - friends: list (optional)
+//   - createdAt: timestamp (required)
+//
+// Collection: games
+// Document ID: {gameId}
+// Fields:
+//   - white: string (required) - UID of white player
+//   - black: string (optional) - UID of black player
+//   - fen: string (required) - Current board position
+//   - pgn: string (optional) - Move history
+//   - status: string (required) - waiting, ongoing, finished
+//   - winner: string (optional) - UID of winner
+//   - createdAt: timestamp (required)
+//   - lastMoveAt: timestamp (required)
+//
+// Collection: games/{gameId}/messages
+// Document ID: {messageId}
+// Fields:
+//   - gameId: string (required)
+//   - senderId: string (required)
+//   - text: string (required)
+//   - createdAt: timestamp (required)
+//
+// Collection: forum
+// Document ID: {postId}
+// Fields:
+//   - authorId: string (required)
+//   - title: string (required)
+//   - content: string (required)
+//   - createdAt: timestamp (required)
+//
+// ===============================================================
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isPlayer(gameData) {
+      return isAuthenticated() && (request.auth.uid == gameData.white || request.auth.uid == gameData.black);
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'displayName', 'rating', 'createdAt']) &&
+             data.uid is string &&
+             data.displayName is string && data.displayName.size() < 100 &&
+             data.rating is number &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidGame(data) {
+      return data.keys().hasAll(['white', 'fen', 'status', 'createdAt', 'lastMoveAt']) &&
+             data.white is string &&
+             data.fen is string && data.fen.size() < 200 &&
+             data.status in ['waiting', 'ongoing', 'finished'] &&
+             data.createdAt is timestamp &&
+             data.lastMoveAt is timestamp;
+    }
+
+    function isValidMessage(data) {
+      return data.keys().hasAll(['gameId', 'senderId', 'text', 'createdAt']) &&
+             data.gameId is string &&
+             data.senderId == request.auth.uid &&
+             data.text is string && data.text.size() < 500 &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidPost(data) {
+      return data.keys().hasAll(['authorId', 'title', 'content', 'createdAt']) &&
+             data.authorId == request.auth.uid &&
+             data.title is string && data.title.size() < 200 &&
+             data.content is string && data.content.size() < 5000 &&
+             data.createdAt is timestamp;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isOwner(userId) && isValidUser(request.resource.data);
+      allow update: if isOwner(userId) && isValidUser(request.resource.data) && 
+                    request.resource.data.uid == resource.data.uid;
+    }
+
+    match /games/{gameId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidGame(request.resource.data) && request.resource.data.white == request.auth.uid;
+      allow update: if isAuthenticated() && isValidGame(request.resource.data) && 
+                    (isPlayer(resource.data) || (resource.data.status == 'waiting' && request.resource.data.black == request.auth.uid));
+      
+      match /messages/{messageId} {
+        allow read: if isPlayer(get(/databases/$(database)/documents/games/$(gameId)).data);
+        allow create: if isPlayer(get(/databases/$(database)/documents/games/$(gameId)).data) && isValidMessage(request.resource.data);
+      }
+    }
+
+    match /forum/{postId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidPost(request.resource.data);
+      allow update, delete: if isAuthenticated() && resource.data.authorId == request.auth.uid;
+    }
+  }
+}
